@@ -1,6 +1,10 @@
 import React from 'react'
+import { useFetch } from './hooks/useFetch'
 
 function App() {
+  // Usamos nuestro custom hook para llamar a la API
+  const { data: characters, loading, error } = useFetch('https://rickandmortyapi.com/api/character');
+
   return (
     <div className="min-h-screen flex flex-col font-sans text-gray-800">
       {/* Cabecera */}
@@ -12,7 +16,24 @@ function App() {
       <main className="flex-grow p-4 flex flex-col md:flex-row gap-4">
         {/* Sección izquierda: Buscador y Tarjetas */}
         <section className="flex-grow bg-white p-4 rounded shadow-sm">
-          <p>Aquí irá el buscador y el listado de personajes...</p>
+          <h2 className="text-2xl font-bold mb-4">Personajes</h2>
+          
+          {/* Mensajes de carga y error (Requisito de la rúbrica) */}
+          {loading && <p className="text-blue-500 font-semibold animate-pulse">Cargando personajes...</p>}
+          {error && <p className="text-red-500 font-semibold">{error}</p>}
+
+          {/* Grilla de personajes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {!loading && !error && characters.map((char) => (
+              <article key={char.id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-gray-50">
+                <img src={char.image} alt={char.name} className="w-full h-48 object-cover" />
+                <div className="p-3">
+                  <h3 className="font-bold text-lg truncate">{char.name}</h3>
+                  <p className="text-gray-600 text-sm">{char.species} - {char.status}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </section>
 
         {/* Sección derecha: Favoritos (Oculto en celular, visible en PC) */}
