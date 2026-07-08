@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import { useFetch } from './hooks/useFetch'
+import { useLocalStorage } from './hooks/useLocalStorage' // Importamos nuestro nuevo hook
 
 function App() {
   const { data: characters, loading, error } = useFetch('https://rickandmortyapi.com/api/character');
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useState([]);
   
-  // 1. Nuevo estado para guardar los personajes bloqueados
-  const [blocked, setBlocked] = useState([]);
+  // ¡MAGIA!: Cambiamos useState por useLocalStorage. 
+  // Ahora les damos un nombre ('favs' y 'blocks') para que el navegador los reconozca.
+  const [favorites, setFavorites] = useLocalStorage('favs', []);
+  const [blocked, setBlocked] = useLocalStorage('blocks', []);
 
-  // 2. Modificamos el filtro: Ahora exige que coincida el nombre Y que NO esté en la lista de bloqueados
   const filteredCharacters = characters.filter((char) => {
     const matchesSearch = char.name.toLowerCase().includes(searchTerm.toLowerCase());
     const isNotBlocked = !blocked.some((b) => b.id === char.id);
@@ -25,17 +26,12 @@ function App() {
     }
   };
 
-  // 3. Función para bloquear o desbloquear
   const toggleBlocked = (character) => {
     const isAlreadyBlocked = blocked.some((b) => b.id === character.id);
-    
     if (isAlreadyBlocked) {
-      // Si ya estaba bloqueado, lo desbloqueamos (lo sacamos de la lista)
       setBlocked(blocked.filter((b) => b.id !== character.id));
     } else {
-      // Si lo vamos a bloquear, lo agregamos a la lista de bloqueados...
       setBlocked([...blocked, character]);
-      // ... Y CUMPLIMOS LA RÚBRICA: lo eliminamos de favoritos automáticamente por si acaso estaba ahí
       setFavorites(favorites.filter((fav) => fav.id !== character.id));
     }
   };
@@ -48,15 +44,24 @@ function App() {
 
       <main className="flex-grow p-4 flex flex-col md:flex-row gap-4">
         <section className="flex-grow bg-white p-4 rounded shadow-sm">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <h2 className="text-2xl font-bold">Personajes</h2>
-            <input
-              type="text"
-              placeholder="Buscar personaje..."
-              className="border border-gray-300 rounded-lg p-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-col mb-6 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-2xl font-bold">Personajes</h2>
+              <input
+                type="text"
+                placeholder="Buscar personaje..."
+                className="border border-gray-300 rounded-lg p-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            {/* Panel de Estadísticas (Exigido en la rúbrica) */}
+            <div className="bg-gray-100 p-3 rounded flex flex-wrap justify-between md:justify-start md:gap-8 text-sm font-semibold border">
+              <p>🟢 Totales Cargados: <span className="text-blue-600">{characters.length}</span></p>
+              <p>⭐ Favoritos: <span className="text-red-500">{favorites.length}</span></p>
+              <p>🚫 Bloqueados: <span className="text-gray-600">{blocked.length}</span></p>
+            </div>
           </div>
           
           {loading && <p className="text-blue-500 font-semibold animate-pulse">Cargando personajes...</p>}
@@ -74,14 +79,11 @@ function App() {
                       <h3 className="font-bold text-lg truncate">{char.name}</h3>
                       <p className="text-gray-600 text-sm mb-3">{char.species} - {char.status}</p>
                     </div>
-                    {/* Botones de acción apilados */}
                     <div className="flex flex-col gap-2">
                       <button 
                         onClick={() => toggleFavorite(char)}
                         className={`w-full py-2 rounded font-semibold transition-colors text-sm ${
-                          isFav 
-                            ? 'bg-red-500 hover:bg-red-600 text-white' 
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                          isFav ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
                         }`}
                       >
                         {isFav ? 'Quitar Favorito' : '⭐ Favorito'}
@@ -108,12 +110,9 @@ function App() {
 
         {/* Panel Lateral: Favoritos y Bloqueados */}
         <aside className="w-full md:w-72 flex flex-col gap-4">
-          
-          {/* Sección Favoritos */}
           <div className="bg-white p-4 rounded shadow-sm flex flex-col">
             <h2 className="text-xl font-bold border-b pb-2 mb-4 flex justify-between items-center">
-              Favoritos
-              <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{favorites.length}</span>
+              Favoritos <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{favorites.length}</span>
             </h2>
             {favorites.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-4">Aún no hay favoritos.</p>
@@ -132,11 +131,9 @@ function App() {
             )}
           </div>
 
-          {/* Sección Bloqueados */}
           <div className="bg-white p-4 rounded shadow-sm flex flex-col">
             <h2 className="text-xl font-bold border-b pb-2 mb-4 flex justify-between items-center">
-              Bloqueados
-              <span className="bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded-full">{blocked.length}</span>
+              Bloqueados <span className="bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded-full">{blocked.length}</span>
             </h2>
             {blocked.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-4">No hay personajes bloqueados.</p>
@@ -156,7 +153,6 @@ function App() {
               </ul>
             )}
           </div>
-
         </aside>
       </main>
 
