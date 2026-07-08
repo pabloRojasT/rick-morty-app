@@ -4,25 +4,39 @@ import { useFetch } from './hooks/useFetch'
 function App() {
   const { data: characters, loading, error } = useFetch('https://rickandmortyapi.com/api/character');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // 1. Nuevo estado para guardar los favoritos (es un arreglo vacío al inicio)
   const [favorites, setFavorites] = useState([]);
+  
+  // 1. Nuevo estado para guardar los personajes bloqueados
+  const [blocked, setBlocked] = useState([]);
 
-  const filteredCharacters = characters.filter((char) =>
-    char.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // 2. Modificamos el filtro: Ahora exige que coincida el nombre Y que NO esté en la lista de bloqueados
+  const filteredCharacters = characters.filter((char) => {
+    const matchesSearch = char.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const isNotBlocked = !blocked.some((b) => b.id === char.id);
+    return matchesSearch && isNotBlocked;
+  });
 
-  // 2. Función para agregar o quitar de favoritos
   const toggleFavorite = (character) => {
-    // Verificamos si el personaje ya está en favoritos usando su ID
     const isAlreadyFavorite = favorites.some((fav) => fav.id === character.id);
-    
     if (isAlreadyFavorite) {
-      // Si ya está, lo sacamos de la lista
       setFavorites(favorites.filter((fav) => fav.id !== character.id));
     } else {
-      // Si no está, lo agregamos al final de la lista
       setFavorites([...favorites, character]);
+    }
+  };
+
+  // 3. Función para bloquear o desbloquear
+  const toggleBlocked = (character) => {
+    const isAlreadyBlocked = blocked.some((b) => b.id === character.id);
+    
+    if (isAlreadyBlocked) {
+      // Si ya estaba bloqueado, lo desbloqueamos (lo sacamos de la lista)
+      setBlocked(blocked.filter((b) => b.id !== character.id));
+    } else {
+      // Si lo vamos a bloquear, lo agregamos a la lista de bloqueados...
+      setBlocked([...blocked, character]);
+      // ... Y CUMPLIMOS LA RÚBRICA: lo eliminamos de favoritos automáticamente por si acaso estaba ahí
+      setFavorites(favorites.filter((fav) => fav.id !== character.id));
     }
   };
 
@@ -50,7 +64,6 @@ function App() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {!loading && !error && filteredCharacters.map((char) => {
-              // Comprobamos visualmente si este personaje específico es favorito
               const isFav = favorites.some((fav) => fav.id === char.id);
 
               return (
@@ -61,17 +74,25 @@ function App() {
                       <h3 className="font-bold text-lg truncate">{char.name}</h3>
                       <p className="text-gray-600 text-sm mb-3">{char.species} - {char.status}</p>
                     </div>
-                    {/* Botón de favorito */}
-                    <button 
-                      onClick={() => toggleFavorite(char)}
-                      className={`w-full py-2 rounded font-semibold transition-colors ${
-                        isFav 
-                          ? 'bg-red-500 hover:bg-red-600 text-white' 
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-                      }`}
-                    >
-                      {isFav ? 'Quitar Favorito' : '⭐ Agregar Favorito'}
-                    </button>
+                    {/* Botones de acción apilados */}
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={() => toggleFavorite(char)}
+                        className={`w-full py-2 rounded font-semibold transition-colors text-sm ${
+                          isFav 
+                            ? 'bg-red-500 hover:bg-red-600 text-white' 
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                        }`}
+                      >
+                        {isFav ? 'Quitar Favorito' : '⭐ Favorito'}
+                      </button>
+                      <button 
+                        onClick={() => toggleBlocked(char)}
+                        className="w-full py-2 rounded font-semibold transition-colors text-sm bg-gray-800 hover:bg-black text-white"
+                      >
+                        🚫 Bloquear
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -79,42 +100,63 @@ function App() {
 
             {!loading && !error && filteredCharacters.length === 0 && (
               <p className="text-gray-500 col-span-full text-center py-8">
-                No se encontraron personajes con el nombre "{searchTerm}"
+                No se encontraron personajes para mostrar.
               </p>
             )}
           </div>
         </section>
 
-        {/* 3. El Panel Lateral de Favoritos */}
-        <aside className="w-full md:w-72 bg-white p-4 rounded shadow-sm flex flex-col">
-          <h2 className="text-xl font-bold border-b pb-2 mb-4 flex justify-between items-center">
-            Favoritos
-            <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-              {favorites.length}
-            </span>
-          </h2>
+        {/* Panel Lateral: Favoritos y Bloqueados */}
+        <aside className="w-full md:w-72 flex flex-col gap-4">
           
-          {favorites.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-4">Aún no hay favoritos.</p>
-          ) : (
-            <ul className="flex flex-col gap-3 overflow-y-auto max-h-[70vh] pr-2">
-              {favorites.map((fav) => (
-                <li key={fav.id} className="flex items-center gap-3 bg-gray-50 p-2 rounded border">
-                  <img src={fav.image} alt={fav.name} className="w-12 h-12 rounded-full object-cover" />
-                  <div className="flex-grow overflow-hidden">
-                    <p className="font-semibold text-sm truncate">{fav.name}</p>
-                  </div>
-                  <button 
-                    onClick={() => toggleFavorite(fav)}
-                    className="text-red-500 hover:text-red-700 p-1"
-                    title="Eliminar"
-                  >
-                    ✖
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* Sección Favoritos */}
+          <div className="bg-white p-4 rounded shadow-sm flex flex-col">
+            <h2 className="text-xl font-bold border-b pb-2 mb-4 flex justify-between items-center">
+              Favoritos
+              <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">{favorites.length}</span>
+            </h2>
+            {favorites.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">Aún no hay favoritos.</p>
+            ) : (
+              <ul className="flex flex-col gap-3 overflow-y-auto max-h-[40vh] pr-2">
+                {favorites.map((fav) => (
+                  <li key={fav.id} className="flex items-center gap-3 bg-gray-50 p-2 rounded border">
+                    <img src={fav.image} alt={fav.name} className="w-10 h-10 rounded-full object-cover" />
+                    <div className="flex-grow overflow-hidden">
+                      <p className="font-semibold text-sm truncate">{fav.name}</p>
+                    </div>
+                    <button onClick={() => toggleFavorite(fav)} className="text-red-500 hover:text-red-700 p-1" title="Quitar">✖</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Sección Bloqueados */}
+          <div className="bg-white p-4 rounded shadow-sm flex flex-col">
+            <h2 className="text-xl font-bold border-b pb-2 mb-4 flex justify-between items-center">
+              Bloqueados
+              <span className="bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded-full">{blocked.length}</span>
+            </h2>
+            {blocked.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">No hay personajes bloqueados.</p>
+            ) : (
+              <ul className="flex flex-col gap-3 overflow-y-auto max-h-[40vh] pr-2">
+                {blocked.map((b) => (
+                  <li key={b.id} className="flex items-center gap-3 bg-gray-100 p-2 rounded border opacity-75">
+                    <img src={b.image} alt={b.name} className="w-10 h-10 rounded-full object-cover grayscale" />
+                    <div className="flex-grow overflow-hidden">
+                      <p className="font-semibold text-sm truncate line-through">{b.name}</p>
+                    </div>
+                    <button onClick={() => toggleBlocked(b)} className="text-blue-500 hover:text-blue-700 p-1 text-sm font-bold" title="Desbloquear">
+                      Desbloquear
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
         </aside>
       </main>
 
